@@ -5,18 +5,28 @@
       <el-card class="box-card">
         <el-upload
           class="upload-demo"
-          ref="upload"
-          action="https://jsonplaceholder.typicode.com/posts/"
+          ref="upload1"
+          action
           :on-preview="handlePreview1"
-          :on-remove="handleRemove1"
+          :on-change="handleBefore1"
           :file-list="fileList1"
+          :limit="1"
+          :on-exceed="handleExceed1"
           :auto-upload="false"
+          :http-request="handleCustomUpload1"
         >
-          <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
-          <el-button style="margin-left: 10px" size="small" type="success" @click="submitUpload1"
+          <el-button slot="trigger" size="small" type="primary" :disabled="disabled1"
+            >选取文件</el-button
+          >
+          <el-button
+            style="margin-left: 10px"
+            size="small"
+            type="success"
+            :loading="loading1"
+            @click="submitUpload1"
             >上传到服务器</el-button
           >
-          <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过500kb</div>
+          <div slot="tip" class="el-upload__tip">只能上传jpg/png/jpeg格式文件，且不超过2MB</div>
         </el-upload>
       </el-card>
     </el-col>
@@ -25,16 +35,18 @@
       <el-card class="box-card">
         <el-upload
           class="upload-demo"
-          action="https://jsonplaceholder.typicode.com/posts/"
+          action
+          accept=".png,.jpg,.jpeg"
           :on-preview="handlePreview2"
-          :on-remove="handleRemove2"
           :before-remove="beforeRemove2"
-          :limit="5"
+          :before-upload="handleBefore2"
+          :limit="1"
           :on-exceed="handleExceed2"
           :file-list="fileList2"
+          :http-request="handleCustomUpload2"
         >
-          <el-button size="small" type="primary">点击上传</el-button>
-          <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过500kb</div>
+          <el-button size="small" type="primary" :loading="loading2">点击上传</el-button>
+          <div slot="tip" class="el-upload__tip">只能上传jpg/png/jpeg格式文件，且不超过2MB</div>
         </el-upload>
       </el-card>
     </el-col>
@@ -43,15 +55,23 @@
       <el-card class="box-card">
         <el-upload
           class="upload-demo"
-          ref="upload"
-          action="https://jsonplaceholder.typicode.com/posts/"
+          ref="upload3"
+          action
           :on-preview="handlePreview3"
-          :on-remove="handleRemove3"
           :file-list="fileList3"
           :auto-upload="false"
+          list-type="picture"
+          :http-request="handleCustomUpload3"
         >
-          <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
-          <el-button style="margin-left: 10px" size="small" type="success" @click="submitUpload3"
+          <el-button slot="trigger" size="small" type="primary" :disabled="disabled3"
+            >选取文件</el-button
+          >
+          <el-button
+            style="margin-left: 10px"
+            size="small"
+            type="success"
+            :loading="loading3"
+            @click="submitUpload3"
             >上传到服务器</el-button
           >
         </el-upload>
@@ -79,10 +99,11 @@
       <el-card class="box-card">
         <el-upload
           class="upload-demo"
-          ref="upload"
+          ref="upload5"
           action="https://jsonplaceholder.typicode.com/posts/"
           :on-preview="handlePreview5"
           :on-remove="handleRemove5"
+          multiple
           :file-list="fileList5"
           :auto-upload="false"
         >
@@ -129,22 +150,25 @@
 </template>
 
 <script>
+import {
+  uploadSingle,
+  uploadSingleName,
+  uploadSingleBase64,
+  uploadChunk,
+  uploadMerge,
+  uploadAlready
+} from "../api/index";
 export default {
   data() {
     return {
-      fileList1: [
-        {
-          name: "food.jpeg",
-          url: "https://fuss10.elemecdn.com/3/63/4e7f3a15429bfda99bce42a18cdd1jpeg.jpeg?imageMogr2/thumbnail/360x360/format/webp/quality/100"
-        }
-      ],
-      fileList2: [
-        {
-          name: "food.jpeg",
-          url: "https://fuss10.elemecdn.com/3/63/4e7f3a15429bfda99bce42a18cdd1jpeg.jpeg?imageMogr2/thumbnail/360x360/format/webp/quality/100"
-        }
-      ],
+      fileList1: [],
+      loading1: false,
+      disabled1: false,
+      fileList2: [],
+      loading2: false,
       fileList3: [],
+      loading3: false,
+      disabled3: false,
       fileList4: [],
       fileList5: [],
       fileList6: [],
@@ -154,26 +178,97 @@ export default {
   computed: {},
   watch: {},
   methods: {
+    changeButton(val, index) {
+      if (typeof this[`loading` + index] === "boolean") {
+        this[`loading` + index] = val;
+      }
+      if (typeof this[`disabled` + index] === "boolean") {
+        this[`disabled` + index] = val;
+      }
+    },
+    changeBase64(file) {
+      return new Promise((resolve, reject) => {
+        const fileReader = new FileReader();
+        fileReader.readAsDataURL(file);
+        fileReader.onload = (e) => {
+          resolve(e.target.result);
+        };
+      });
+    },
     // 1
-    submitUpload1() {
-      this.$refs.upload.submit();
-    },
-    handleRemove1(file, fileList) {
-      console.log(file, fileList);
-    },
     handlePreview1(file) {
-      console.log(file);
+      if (!file.response) return;
+      location.href = file.response.servicePath;
+    },
+    handleBefore1(file, fileList) {
+      if (file.response) return;
+      console.log(file, fileList);
+      if (!/(PNG|JPG|JPEG)/i.test(file.raw.type)) {
+        this.$message({
+          message: "只能上传jpg/png/jpeg格式文件",
+          type: "warning"
+        });
+        const currentIndex = fileList.findIndex((item) => {
+          return item.uid === file.uid;
+        });
+        fileList.splice(currentIndex, 1);
+        return;
+      }
+      if (file.size >= 1024 * 1024 * 2) {
+        this.$message({
+          message: "文件大小不能超过2MB",
+          type: "warning"
+        });
+        const currentIndex = fileList.findIndex((item) => {
+          return item.uid === file.uid;
+        });
+        fileList.splice(currentIndex, 1);
+        return;
+      }
+    },
+    submitUpload1() {
+      if (this.$refs.upload1.uploadFiles.length === 0)
+        return this.$message({
+          message: "请选择要上传的文件",
+          type: "warning"
+        });
+      this.changeButton(true, 1);
+      this.$refs.upload1.submit();
+    },
+    async handleCustomUpload1(options) {
+      console.log("options", options);
+      let formData = new FormData();
+      formData.append("file", options.file);
+      formData.append("filename", options.file.name);
+      try {
+        const result = await uploadSingle(formData);
+        if (result.code === 0) {
+          this.$message.success("上传成功");
+          return Promise.resolve(result);
+        }
+        throw result.codeText;
+      } catch (error) {
+        this.$message.error("上传失败");
+        return Promise.reject(error);
+      } finally {
+        this.changeButton(false, 1);
+      }
+    },
+    handleExceed1() {
+      this.$message.warning(
+        `当前限制选择 1 个文件，本次选择了 ${files.length} 个文件，共选择了 ${
+          files.length + fileList.length
+        } 个文件`
+      );
     },
     // 2
-    handleRemove2(file, fileList) {
-      console.log(file, fileList);
-    },
     handlePreview2(file) {
-      console.log(file);
+      if (!file.response) return;
+      location.href = file.response.servicePath;
     },
     handleExceed2(files, fileList) {
       this.$message.warning(
-        `当前限制选择 3 个文件，本次选择了 ${files.length} 个文件，共选择了 ${
+        `当前限制选择 1 个文件，本次选择了 ${files.length} 个文件，共选择了 ${
           files.length + fileList.length
         } 个文件`
       );
@@ -181,15 +276,55 @@ export default {
     beforeRemove2(file, fileList) {
       return this.$confirm(`确定移除 ${file.name}？`);
     },
+    handleBefore2(file) {
+      if (file.size >= 1024 * 1024 * 2) {
+        this.$message({
+          message: "文件大小不能超过2MB",
+          type: "warning"
+        });
+        const currentIndex = fileList.findIndex((item) => {
+          return item.uid === file.uid;
+        });
+        fileList.splice(currentIndex, 1);
+        return;
+      }
+    },
+    async handleCustomUpload2(options) {
+      const base64 = await this.changeBase64(options.file);
+      this.changeButton(true, 2);
+      console.log("options", options);
+      try {
+        const data = {
+          file: encodeURIComponent(base64),
+          filename: options.file.name
+        };
+        const result = await uploadSingleBase64(data);
+        if (result.code === 0) {
+          this.$message.success("上传成功");
+          return Promise.resolve(result);
+        }
+        throw result.codeText;
+      } catch (error) {
+        this.$message.error("上传失败");
+        return Promise.reject(error);
+      } finally {
+        this.changeButton(false, 2);
+      }
+    },
     // 3
     submitUpload3() {
-      this.$refs.upload.submit();
-    },
-    handleRemove3(file, fileList) {
-      console.log(file, fileList);
+      if (this.$refs.upload3.uploadFiles.length === 0)
+        return this.$message({
+          message: "请选择要上传的文件",
+          type: "warning"
+        });
+      this.$refs.upload3.submit();
     },
     handlePreview3(file) {
       console.log(file);
+    },
+    handleCustomUpload3(options) {
+      console.log("options", options);
     },
     // 4
     handleRemove4(file, fileList) {
@@ -200,7 +335,7 @@ export default {
     },
     handleExceed4(files, fileList) {
       this.$message.warning(
-        `当前限制选择 3 个文件，本次选择了 ${files.length} 个文件，共选择了 ${
+        `当前限制选择 5 个文件，本次选择了 ${files.length} 个文件，共选择了 ${
           files.length + fileList.length
         } 个文件`
       );
@@ -210,7 +345,7 @@ export default {
     },
     // 5
     submitUpload5() {
-      this.$refs.upload.submit();
+      this.$refs.upload5.submit();
     },
     handleRemove5(file, fileList) {
       console.log(file, fileList);
@@ -228,7 +363,7 @@ export default {
     },
     handleExceed7(files, fileList) {
       this.$message.warning(
-        `当前限制选择 3 个文件，本次选择了 ${files.length} 个文件，共选择了 ${
+        `当前限制选择 5 个文件，本次选择了 ${files.length} 个文件，共选择了 ${
           files.length + fileList.length
         } 个文件`
       );
