@@ -1,21 +1,25 @@
 <template>
-  <div class="about">
-    <Dynamic />
+  <div>
+    {{ count }}<br />
+    <button @click="handleAdd">增加</button>
   </div>
 </template>
 
 <script>
-import Dynamic from "@/components/echarts-dynamic";
 export default {
-  components: {
-    Dynamic
+  props: {
+    count: Number
   },
   data() {
     return {};
   },
   computed: {},
   watch: {},
-  methods: {},
+  methods: {
+    handleAdd() {
+      this.$emit("update:count", this.count + 1);
+    }
+  },
   //生命周期 - 创建完成（可以访问当前this实例）
   created() {},
   //生命周期 - 挂载完成（可以访问DOM元素）
