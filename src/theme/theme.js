@@ -11,7 +11,6 @@ const changeStyle = (obj) => {
 export const setTheme = (themeName) => {
   localStorage.setItem("theme", themeName); // 保存主题到本地，下次进入使用该主题
   const themeConfig = themes[themeName];
-  console.log('themeConfig',themeConfig);
   // 如果有主题名称，那么则采用我们定义的主题
   if (themeConfig) {
     localStorage.setItem("primaryColor", themeConfig.primaryColor); // 保存主题色到本地

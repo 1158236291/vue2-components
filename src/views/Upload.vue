@@ -575,7 +575,6 @@ export default {
           already = data.fileList;
         }
       } catch (err) {}
-      console.log("already", already);
       let maxSize = 1024 * 1024 * 10;
       let count = Math.ceil(options.file.size / maxSize);
       let index = 0;

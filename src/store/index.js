@@ -3,15 +3,15 @@ import Vuex from "vuex";
 
 Vue.use(Vuex);
 
-// const modulesFiles = require.context("./modules", false, /\.js$/);
+const modulesFiles = require.context("./modules", true, /\.js$/);
+const modules = modulesFiles.keys().reduce((modules, modulePath) => {
+  const moduleName = modulePath.replace(/\.\/(.*)\.\w+$/, "$1");
+  // 执行modulesFiles函数，返回一个对象{default: {// 文件内容}, _esModule: true}
+  const value = modulesFiles(modulePath);
+  modules[moduleName] = value.default || value;
+  return modules;
+}, {});
 
-// const modules = modulesFiles.key().reduce((module, moduleFile) => {
-//   const value = modulesFiles(module).default;
-//   const key = moduleFile.replace("/^./(.*).w+$/", "$1");
-//   module[key] = value;
-//   return module;
-// }, {});
-const modules = {};
 export default new Vuex.Store({
   modules
 });
